@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Dueño</title>
+    <script>
+        async function registrarDueño() {
+            const nombre = document.getElementById('nombre').value;
+            const dni = document.getElementById('dni').value;
+            const apellido = document.getElementById('apellido').value;
+            const fechaNacimiento = document.getElementById('fechaNacimiento').value;
+
+            if (!nombre || !dni || !apellido || !fechaNacimiento) {
+                alert("Por favor, completa todos los campos para registrar un Dueño.");
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/registro', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nombre,
+                        dni,
+                        apellido,
+                        fechaNacimiento,
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`Dueño registrado con éxito.\nTiempo de ejecución: ${result.tiempo_ms.toFixed(2)} ms`);
+                    window.location.href = '/'; // Redirigir al inicio
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al registrar el dueño:', error);
+                alert('Error al registrar el dueño.');
+            }
+        }
+
+        function volverAlInicio() {
+            window.location.href = '/';
+        }
+    </script>
+</head>
+<body>
+    <h1>Registro de Dueño</h1>
+    <label for="nombre">Nombre:</label>
+    <input type="text" id="nombre" placeholder="Ingresa el nombre"><br>
+
+    <label for="dni">DNI:</label>
+    <input type="text" id="dni" placeholder="Ingresa el DNI"><br>
+
+    <label for="apellido">Apellido:</label>
+    <input type="text" id="apellido" placeholder="Ingresa el apellido"><br>
+
+    <label for="fechaNacimiento">Fecha de Nacimiento:</label>
+    <input type="text" id="fechaNacimiento"><br><br>
+
+    <button onclick="registrarDueño()">Registrar Dueño</button>
+    <button onclick="volverAlInicio()">Volver al Inicio</button>
+</body>
+</html>

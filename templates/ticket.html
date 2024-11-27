@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Ticket</title>
+    <script>
+        // Función para verificar si el usuario ha iniciado sesión
+        function verificarSesion() {
+            const nombre = localStorage.getItem('nombre');
+            if (!nombre) {
+                alert('Error: No se detectó un usuario válido. Por favor, inicia sesión nuevamente.');
+                window.location.href = '/inicio.html'; // Redirige al inicio de sesión
+            }
+            return nombre;
+        }
+
+        // Función para generar el ticket
+        async function generarTicket() {
+            const nombre = verificarSesion(); // Verifica el usuario logueado
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/ticket', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        dueño_nombre: nombre // Envía el nombre del dueño
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`Ticket generado con éxito.\nID: ${result.data.id}\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                    document.getElementById('ticketInfo').innerHTML = `
+                        <p><strong>Ticket generado con éxito:</strong></p>
+                        <p>ID: ${result.data.id}</p>
+                        <p>Números: ${result.data.numeros.join(', ')}</p>
+                        <p>Fecha de Compra: ${result.data.fechaCompra}</p>
+                    `;
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al generar el ticket:', error);
+                alert('Error al generar el ticket.');
+            }
+        }
+
+        // Función para verificar si eres ganador
+        async function verificarGanador() {
+            const nombre = verificarSesion(); // Obtener el nombre del usuario actual desde localStorage
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/ganadores', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        dueño_nombre: nombre // Enviar el nombre del usuario
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    if (result.ganadores && result.ganadores.length > 0) {
+                        let ganadorInfo = '<h3>¡Felicidades! Eres ganador:</h3>';
+                        result.ganadores.forEach(ganador => {
+                            ganadorInfo += `
+                                <p>Dueño: ${ganador.dueño.nombre}</p>
+                                <p>Ticket ID: ${ganador.ticket.id}</p>
+                                <p>Sorteo: ${ganador.sorteo.name}</p>
+                                <p>Dinero Ganado: ${ganador.dinero_ganado}</p>
+                                <hr>
+                            `;
+                        });
+                        document.getElementById('ganadorInfo').innerHTML = ganadorInfo;
+                    } else {
+                        document.getElementById('ganadorInfo').innerHTML = '<p>No hubo ganadores esta vez.</p>';
+                    }
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al verificar ganadores:', error);
+                alert('Error al verificar ganadores.');
+            }
+        }
+        async function eliminarCuenta() {
+            const nombre = localStorage.getItem('nombre'); // Recuperar el nombre del usuario
+
+            if (!nombre) {
+                alert('Error: No se detectó un usuario válido. Por favor, inicia sesión nuevamente.');
+                return;
+            }
+
+            if (!confirm('¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/dueño', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nombre }),
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`${result.message}\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                    localStorage.removeItem('nombre'); // Eliminar datos de sesión
+                    window.location.href = '/'; // Redirigir a inicio
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al eliminar la cuenta:', error);
+                alert('Error al eliminar la cuenta.');
+            }
+        }
+
+        async function actualizarInformacion() {
+            const nuevoNombre = document.getElementById('nuevo_nombre').value.trim();
+            const nuevoApellido = document.getElementById('nuevo_apellido').value.trim();
+
+            if (!nuevoNombre && !nuevoApellido) {
+                alert("Por favor, ingresa al menos un dato para actualizar.");
+                return;
+            }
+
+            const nombreActual = localStorage.getItem('nombre'); // Obtén el nombre actual
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/dueño', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nombre_actual: nombreActual,
+                        nuevo_nombre: nuevoNombre || null,
+                        nuevo_apellido: nuevoApellido || null,
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`Información actualizada con éxito.\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+
+            // Actualiza localStorage con el nuevo nombre si cambia
+                    if (nuevoNombre) {
+                        localStorage.setItem('nombre', nuevoNombre); // Cambia el nombre en el cliente
+                    }
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al actualizar la información:', error);
+                alert('Error al actualizar la información.');
+            }
+        }
+
+
+        async function eliminarTicketReciente() {
+            try {
+                const nombre = localStorage.getItem('nombre'); // Recuperar el nombre del usuario
+                if (!nombre) {
+                    alert('Error: No se detectó un usuario válido.');
+                    return;
+                }
+
+                const response = await fetch('http://127.0.0.1:5000/neo4j/ticket/recent', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        dueño_nombre: nombre
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`${result.message}\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                    document.getElementById('ticketInfo').innerHTML = ''; // Limpia la información del ticket
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al eliminar el ticket:', error);
+                alert('Error al eliminar el ticket.');
+            }
+        }
+
+        // Función para cerrar sesión
+        function cerrarSesion() {
+            localStorage.removeItem('nombre'); // Elimina el nombre del usuario de localStorage
+            window.location.href = '/'; // Redirige al inicio de sesión
+        }
+
+        function mostrarAjustes() {
+            document.getElementById('ajustes').style.display = 'block';
+        }
+        
+
+    </script>
+</head>
+<body>
+    <h1>Gestión de Tickets</h1>
+    <button onclick="generarTicket()">Generar Ticket</button>
+    <button onclick="verificarGanador()" style="margin-left: 10px;">Verificar si Ganaste</button>
+    <button onclick="cerrarSesion()" style="margin-left: 10px;">Cerrar Sesión</button>
+    <button onclick="eliminarCuenta()">Borrar Cuenta</button>
+    <button onclick="mostrarAjustes()">Ajustes</button>
+    <button onclick="eliminarTicketReciente()">Borrar Ticket Reciente</button>
+
+
+    <div id="ticketInfo" style="margin-top: 20px;">
+        <!-- Aquí se mostrarán los datos del ticket generado -->
+    </div>
+    <div id="ganadorInfo" style="margin-top: 20px;">
+        <!-- Aquí se mostrarán los resultados de la verificación de ganador -->
+    </div>
+    <div id="ajustes" style="display: none;">
+        <label for="nuevo_nombre">Nuevo Nombre:</label>
+        <input type="text" id="nuevo_nombre" placeholder="Ingresa nuevo nombre">
+        <label for="nuevo_apellido">Nuevo Apellido:</label>
+        <input type="text" id="nuevo_apellido" placeholder="Ingresa nuevo apellido">
+        <button onclick="actualizarInformacion()">Guardar Cambios</button>
+    </div>
+</body>
+</html>
+
+
+

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de Sesión</title>
+    <script>
+        async function iniciarSesion() {
+            const nombre = document.getElementById('nombre_login').value;
+
+            if (!nombre) {
+                alert("Por favor, ingresa tu nombre para iniciar sesión.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/neo4j/login?nombre=${nombre}`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    // Mostrar mensaje de bienvenida con tiempo de ejecución
+                    alert(`${result.message}\nTiempo de ejecución: ${result.tiempo_ms.toFixed(2)} ms`);
+                    // Guardar el nombre del usuario en localStorage
+                    localStorage.setItem('nombre', nombre);
+
+                    // Redirigir según el tipo de usuario
+                    if (result.redirect === 'admin_dashboard') {
+                        window.location.href = '/sorteo.html'; // Simulación para root
+                    } else {
+                        window.location.href = '/ticket.html'; // Simulación para usuario normal
+                    }
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al iniciar sesión:', error);
+                alert('Error al iniciar sesión.');
+            }
+        }
+
+        function irARegistro() {
+            window.location.href = '/registro.html';
+        }
+    </script>
+</head>
+<body>
+    <h1>Inicio de Sesión</h1>
+    <label for="nombre_login">Nombre:</label>
+    <input type="text" id="nombre_login" placeholder="Ingresa tu nombre"><br><br>
+    <button onclick="iniciarSesion()">Iniciar Sesión</button><br><br>
+    <button onclick="irARegistro()">Registro</button>
+</body>
+</html>
+
+
+
+

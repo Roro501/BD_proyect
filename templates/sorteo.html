@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Sorteos</title>
+    <script>
+        // Verificar si el usuario es root
+        function verificarSesion() {
+            const nombre = localStorage.getItem('nombre');
+            if (!nombre || nombre !== 'root') {
+                alert('Acceso denegado. Solo el usuario root tiene permisos.');
+                window.location.href = '/inicio.html';
+            }
+        }
+
+        // Generar Sorteo
+        async function generarSorteo() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/sorteo/auto', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert(`Sorteo generado con éxito.\nID: ${result.data.id}\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                    document.getElementById('sorteoInfo').innerHTML = `
+                        <p><strong>Sorteo generado:</strong></p>
+                        <p>ID: ${result.data.id}</p>
+                        <p>Números: ${result.data.numeros.join(', ')}</p>
+                        <p>Fecha: ${result.data.fecha}</p>
+                    `;
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al generar el sorteo:', error);
+                alert('Error al generar el sorteo.');
+            }
+        }
+
+        // Obtener todos los sorteos
+        async function obtenerSorteos() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/neo4j/sorteos');
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert(`Sorteos obtenidos con éxito.\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                    const sorteos = result.sorteos || [];
+                    if (sorteos.length === 0) {
+                        document.getElementById('listaSorteos').innerHTML = '<p>No hay sorteos disponibles.</p>';
+                        return;
+                    }
+
+                    let html = '<h4>Lista de Sorteos:</h4>';
+                    sorteos.forEach(sorteo => {
+                        html += `<p>ID: ${sorteo.id}, Números: ${sorteo.numeros.join(', ')}, Fecha: ${sorteo.fecha}</p>`;
+                    });
+                    document.getElementById('listaSorteos').innerHTML = html;
+                } else {
+                    alert(`Error: ${result.message}`);
+                    console.error('Detalles del error:', result);
+                }
+            } catch (error) {
+                console.error('Error al obtener sorteos:', error);
+                alert('Error al obtener sorteos. Verifica la consola para más detalles.');
+            }
+        }
+
+        // Eliminar Sorteo
+        async function eliminarSorteo() {
+            const sorteoId = document.getElementById('sorteo_id_delete').value.trim();
+
+            if (!sorteoId) {
+                alert('Por favor, ingresa el ID del sorteo.');
+                return;
+            }
+
+            if (!confirm(`¿Estás seguro de que deseas eliminar el sorteo con ID ${sorteoId}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/neo4j/sorteo/${sorteoId}`, { method: 'DELETE' });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert(`${result.message}\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al eliminar el sorteo:', error);
+                alert('Error al eliminar el sorteo.');
+            }
+        }
+
+        // Actualizar Sorteo
+        async function actualizarSorteo() {
+            const sorteoId = document.getElementById('sorteo_id_update').value.trim();
+            const nuevosNumeros = document.getElementById('nuevos_numeros').value.trim().split(',').map(Number);
+            const nuevaFecha = document.getElementById('nueva_fecha').value.trim();
+
+            if (!sorteoId || !nuevosNumeros.length || !nuevaFecha) {
+                alert('Por favor, ingresa todos los datos para actualizar el sorteo.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/neo4j/sorteo/${sorteoId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ numeros: nuevosNumeros, fecha: nuevaFecha }),
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert(`${result.message}\nTiempo de ejecución: ${result.time_elapsed_ms.toFixed(2)} ms`);
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error al actualizar el sorteo:', error);
+                alert('Error al actualizar el sorteo.');
+            }
+        }
+
+        // Cerrar Sesión
+        function cerrarSesion() {
+            localStorage.removeItem('nombre');
+            window.location.href = '/';
+        }
+    </script>
+</head>
+<body onload="verificarSesion()">
+    <h1>Gestión de Sorteos</h1>
+    <button onclick="generarSorteo()">Generar Sorteo</button>
+    <button onclick="cerrarSesion()">Cerrar Sesión</button>
+    
+    <div id="sorteoInfo" style="margin-top: 20px;"></div>
+
+    <div id="sorteos" style="margin-top: 20px;">
+        <h2>Gestión de Sorteos</h2>
+        
+        <!-- Obtener todos los sorteos -->
+        <button onclick="obtenerSorteos()">Ver Todos los Sorteos</button>
+        <div id="listaSorteos" style="margin-top: 10px;"></div>
+        
+        <!-- Eliminar un sorteo -->
+        <h3>Eliminar Sorteo</h3>
+        <label for="sorteo_id_delete">ID del Sorteo:</label>
+        <input type="text" id="sorteo_id_delete" placeholder="Ingresa el ID del Sorteo">
+        <button onclick="eliminarSorteo()">Eliminar</button>
+        
+        <!-- Actualizar un sorteo -->
+        <h3>Actualizar Sorteo</h3>
+        <label for="sorteo_id_update">ID del Sorteo:</label>
+        <input type="text" id="sorteo_id_update" placeholder="Ingresa el ID del Sorteo"><br>
+        <label for="nuevos_numeros">Nuevos Números:</label>
+        <input type="text" id="nuevos_numeros" placeholder="Ej: 5, 10, 15, 20, 25, 30, 35, 40"><br>
+        <label for="nueva_fecha">Nueva Fecha:</label>
+        <input type="text" id="nueva_fecha" placeholder="YYYY-MM-DD"><br>
+        <button onclick="actualizarSorteo()">Actualizar</button>
+    </div>
+</body>
+</html>
+
+
